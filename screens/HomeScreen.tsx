@@ -116,8 +116,12 @@ export default function HomeScreen({ navigation }: Props) {
     return () => { mounted = false; clearInterval(interval); };
   }, []);
 
-  // Monitor GPS / location permission
+  // Monitor GPS / location permission (only when system is active)
   useEffect(() => {
+    if (!systemActive) {
+      setGpsOk(false);
+      return;
+    }
     let mounted = true;
     const check = async () => {
       try {
@@ -129,7 +133,7 @@ export default function HomeScreen({ navigation }: Props) {
     check();
     const interval = setInterval(check, 5000);
     return () => { mounted = false; clearInterval(interval); };
-  }, []);
+  }, [systemActive]);
 
   // ── Add contact from phone book ──
   const handleAddContact = useCallback(async () => {
@@ -145,9 +149,13 @@ export default function HomeScreen({ navigation }: Props) {
           contact.phoneNumbers && contact.phoneNumbers.length > 0
             ? contact.phoneNumbers[0].number ?? 'No number'
             : 'No number';
+        const name =
+          contact.name
+          || [contact.firstName, contact.lastName].filter(Boolean).join(' ')
+          || 'Unknown';
         setPersonalContacts(prev => [
           ...prev,
-          { id: String(Date.now()), name: contact.name ?? 'Unknown', phone },
+          { id: String(Date.now()), name, phone },
         ]);
       }
     } catch {
@@ -230,7 +238,17 @@ export default function HomeScreen({ navigation }: Props) {
         </View>
         <TouchableOpacity
           style={[styles.toggleBtn, systemActive ? styles.toggleOn : styles.toggleOff]}
-          onPress={() => setSystemActive(v => !v)}
+          onPress={async () => {
+            if (systemActive) {
+              // Turning OFF
+              setSystemActive(false);
+            } else {
+              // Turning ON — request location permission
+              const { status } = await Location.requestForegroundPermissionsAsync();
+              setSystemActive(true);
+              setGpsOk(status === 'granted');
+            }
+          }}
           accessibilityLabel="Toggle system power"
         >
           <Text style={styles.toggleText}>{systemActive ? 'ON' : 'OFF'}</Text>
