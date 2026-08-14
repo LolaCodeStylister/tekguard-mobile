@@ -15,6 +15,9 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../App';
 import MapView, { Marker } from 'react-native-maps';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Contacts from 'expo-contacts';
+import * as Network from 'expo-network';
+import * as Location from 'expo-location';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type HomeScreenNavigationProp = NativeStackNavigationProp<
@@ -95,6 +98,63 @@ export default function HomeScreen({ navigation }: Props) {
     setPersonalContacts(prev => prev.filter(c => c.id !== id));
   }, []);
 
+  // ── Live hardware state ──
+  const [networkOk, setNetworkOk] = useState(true);
+  const [gpsOk, setGpsOk] = useState(true);
+
+  // Monitor network connectivity
+  useEffect(() => {
+    let mounted = true;
+    const check = async () => {
+      try {
+        const state = await Network.getNetworkStateAsync();
+        if (mounted) setNetworkOk(state.isConnected === true && state.isInternetReachable !== false);
+      } catch { if (mounted) setNetworkOk(false); }
+    };
+    check();
+    const interval = setInterval(check, 5000);
+    return () => { mounted = false; clearInterval(interval); };
+  }, []);
+
+  // Monitor GPS / location permission
+  useEffect(() => {
+    let mounted = true;
+    const check = async () => {
+      try {
+        const { status } = await Location.getForegroundPermissionsAsync();
+        const services = await Location.hasServicesEnabledAsync();
+        if (mounted) setGpsOk(status === 'granted' && services);
+      } catch { if (mounted) setGpsOk(false); }
+    };
+    check();
+    const interval = setInterval(check, 5000);
+    return () => { mounted = false; clearInterval(interval); };
+  }, []);
+
+  // ── Add contact from phone book ──
+  const handleAddContact = useCallback(async () => {
+    try {
+      const { status } = await Contacts.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Contacts access is required to add emergency contacts.');
+        return;
+      }
+      const contact = await Contacts.presentContactPickerAsync();
+      if (contact) {
+        const phone =
+          contact.phoneNumbers && contact.phoneNumbers.length > 0
+            ? contact.phoneNumbers[0].number ?? 'No number'
+            : 'No number';
+        setPersonalContacts(prev => [
+          ...prev,
+          { id: String(Date.now()), name: contact.name ?? 'Unknown', phone },
+        ]);
+      }
+    } catch {
+      Alert.alert('Error', 'Could not open the contact picker.');
+    }
+  }, []);
+
   // Pulse animation for the live status dot
   const pulse = useRef(new Animated.Value(1)).current;
 
@@ -118,18 +178,22 @@ export default function HomeScreen({ navigation }: Props) {
       <StatusBar barStyle="light-content" backgroundColor="#000000" />
 
       {/* ── System Heartbeat Bar ── */}
-      <View style={styles.heartbeatBar}>
+      <View style={[styles.heartbeatBar, (!networkOk || !gpsOk) && styles.heartbeatBarOff]}>
         <View style={styles.heartbeatItem}>
-          <View style={[styles.heartbeatDot, styles.heartbeatDotGreen]} />
-          <Text style={styles.heartbeatLabel}>GPS: LOCKED</Text>
+          <View style={[styles.heartbeatDot, gpsOk ? styles.heartbeatDotGreen : styles.heartbeatDotRed]} />
+          <Text style={[styles.heartbeatLabel, !gpsOk && { color: 'rgba(255,76,76,0.75)' }]}>
+            {gpsOk ? 'GPS: LOCKED' : 'GPS: OFF'}
+          </Text>
         </View>
         <View style={styles.heartbeatItem}>
           <View style={[styles.heartbeatDot, styles.heartbeatDotGreen]} />
           <Text style={styles.heartbeatLabel}>SENSORS: ACTIVE</Text>
         </View>
         <View style={styles.heartbeatItem}>
-          <View style={[styles.heartbeatDot, styles.heartbeatDotGreen]} />
-          <Text style={styles.heartbeatLabel}>NETWORK: SECURE</Text>
+          <View style={[styles.heartbeatDot, networkOk ? styles.heartbeatDotGreen : styles.heartbeatDotRed]} />
+          <Text style={[styles.heartbeatLabel, !networkOk && { color: 'rgba(255,76,76,0.75)' }]}>
+            {networkOk ? 'NETWORK: SECURE' : 'NETWORK: OFFLINE'}
+          </Text>
         </View>
       </View>
 
@@ -429,10 +493,9 @@ export default function HomeScreen({ navigation }: Props) {
               )}
             </View>
 
-            {/* Add Contact */}
             <TouchableOpacity
               style={styles.locAddBtn}
-              onPress={() => Alert.alert('Add Contact', 'Opens phone contact book')}
+              onPress={handleAddContact}
               accessibilityLabel="Add emergency contact"
             >
               <Ionicons name="add-circle-outline" size={20} color={CYAN} />
@@ -524,6 +587,8 @@ const styles = StyleSheet.create({
   heartbeatItem:    { flexDirection: 'row', alignItems: 'center', gap: 5 },
   heartbeatDot:     { width: 6, height: 6, borderRadius: 3 },
   heartbeatDotGreen:{ backgroundColor: GREEN, shadowColor: GREEN, shadowOpacity: 0.9, shadowRadius: 3 },
+  heartbeatDotRed:  { backgroundColor: RED,   shadowColor: RED,   shadowOpacity: 0.9, shadowRadius: 3 },
+  heartbeatBarOff:  { backgroundColor: 'rgba(255,76,76,0.04)', borderColor: 'rgba(255,76,76,0.10)' },
   heartbeatLabel:   { fontSize: 9, fontWeight: '700', color: 'rgba(0,255,136,0.75)', letterSpacing: 0.8 },
 
   // Header
