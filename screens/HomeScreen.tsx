@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,9 +8,11 @@ import {
   Animated,
   ScrollView,
   Platform,
+  Alert,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../App';
+import MapView from 'react-native-maps';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type HomeScreenNavigationProp = NativeStackNavigationProp<
@@ -28,6 +30,41 @@ export default function HomeScreen({ navigation }: Props) {
   const [dmsEnabled, setDmsEnabled] = useState(true);
   const [fallEnabled, setFallEnabled] = useState(true);
   const [activeZone, setActiveZone] = useState('Science Block');
+
+  // ── Safe Walk Timer state ──
+  const [walkTimerActive, setWalkTimerActive] = useState(false);
+  const [walkSeconds, setWalkSeconds] = useState(0);
+  const walkInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // ── Discrete Actions menu ──
+  const [discreteMenuOpen, setDiscreteMenuOpen] = useState(false);
+
+  // ── Walk-timer tick ──
+  useEffect(() => {
+    if (walkTimerActive) {
+      walkInterval.current = setInterval(() => setWalkSeconds(s => s + 1), 1000);
+    } else if (walkInterval.current) {
+      clearInterval(walkInterval.current);
+      walkInterval.current = null;
+    }
+    return () => { if (walkInterval.current) clearInterval(walkInterval.current); };
+  }, [walkTimerActive]);
+
+  const formatTimer = useCallback((sec: number) => {
+    const m = String(Math.floor(sec / 60)).padStart(2, '0');
+    const s = String(sec % 60).padStart(2, '0');
+    return `${m}:${s}`;
+  }, []);
+
+  const handleFakeCall = useCallback(() => {
+    setDiscreteMenuOpen(false);
+    Alert.alert('📞 Incoming Call…', 'Simulating a phone call for your safety.\nShow this to excuse yourself.');
+  }, []);
+
+  const handleShareLocation = useCallback(() => {
+    setDiscreteMenuOpen(false);
+    Alert.alert('📍 Location Shared', 'Your live location has been sent to your emergency contacts.');
+  }, []);
 
   // Pulse animation for the live status dot
   const pulse = useRef(new Animated.Value(1)).current;
@@ -50,6 +87,22 @@ export default function HomeScreen({ navigation }: Props) {
       showsVerticalScrollIndicator={false}
     >
       <StatusBar barStyle="light-content" backgroundColor="#060D18" />
+
+      {/* ── System Heartbeat Bar ── */}
+      <View style={styles.heartbeatBar}>
+        <View style={styles.heartbeatItem}>
+          <View style={[styles.heartbeatDot, styles.heartbeatDotGreen]} />
+          <Text style={styles.heartbeatLabel}>GPS: LOCKED</Text>
+        </View>
+        <View style={styles.heartbeatItem}>
+          <View style={[styles.heartbeatDot, styles.heartbeatDotGreen]} />
+          <Text style={styles.heartbeatLabel}>SENSORS: ACTIVE</Text>
+        </View>
+        <View style={styles.heartbeatItem}>
+          <View style={[styles.heartbeatDot, styles.heartbeatDotGreen]} />
+          <Text style={styles.heartbeatLabel}>NETWORK: SECURE</Text>
+        </View>
+      </View>
 
       {/* ── Header ── */}
       <View style={styles.header}>
@@ -90,6 +143,96 @@ export default function HomeScreen({ navigation }: Props) {
         <Text style={styles.cardLabel}>📍 Current Zone</Text>
         <Text style={styles.zoneName}>{activeZone}</Text>
         <Text style={styles.zoneCoord}>KNUST Campus · GPS Active</Text>
+      </View>
+
+      {/* ── Center Map Area ── */}
+      <View style={styles.mapContainer}>
+        {/* Native MapView targeting KNUST campus */}
+        <MapView
+          style={styles.mapView}
+          initialRegion={{
+            latitude: 6.6731,
+            longitude: -1.5674,
+            latitudeDelta: 0.015,
+            longitudeDelta: 0.012,
+          }}
+          showsUserLocation
+          showsMyLocationButton={false}
+          userInterfaceStyle="dark"
+        />
+
+        {/* ── Crowd Density Pins (floating over map) ── */}
+        <View style={[styles.densityPin, { top: '18%', left: '15%' }]}>
+          <Text style={styles.densityPinName}>Library</Text>
+          <View style={[styles.densityBadge, styles.densityHigh]}>
+            <Text style={styles.densityHighText}>👥 142 Active</Text>
+          </View>
+        </View>
+
+        <View style={[styles.densityPin, { top: '55%', right: '10%' }]}>
+          <Text style={styles.densityPinName}>Science Block</Text>
+          <View style={[styles.densityBadge, styles.densityHigh]}>
+            <Text style={styles.densityHighText}>👥 89 Active</Text>
+          </View>
+        </View>
+
+        <View style={[styles.densityPin, { bottom: '15%', left: '22%' }]}>
+          <Text style={styles.densityPinName}>Car Park B</Text>
+          <View style={[styles.densityBadge, styles.densityLow]}>
+            <Text style={styles.densityLowText}>👥 3 Active</Text>
+          </View>
+        </View>
+
+        <View style={[styles.densityPin, { top: '30%', right: '25%' }]}>
+          <Text style={styles.densityPinName}>Main Gate</Text>
+          <View style={[styles.densityBadge, styles.densityMed]}>
+            <Text style={styles.densityMedText}>👥 27 Active</Text>
+          </View>
+        </View>
+
+        {/* ── Overlay: Safe Walk Timer ── */}
+        <View style={styles.walkTimerOverlay}>
+          <Text style={styles.walkTimerIcon}>🚶</Text>
+          <Text style={styles.walkTimerTitle}>Safe Walk</Text>
+          <Text style={styles.walkTimerClock}>{formatTimer(walkSeconds)}</Text>
+          <TouchableOpacity
+            style={[styles.walkTimerBtn, walkTimerActive && styles.walkTimerBtnStop]}
+            onPress={() => {
+              if (walkTimerActive) { setWalkTimerActive(false); setWalkSeconds(0); }
+              else { setWalkTimerActive(true); }
+            }}
+            accessibilityLabel={walkTimerActive ? 'Stop walk timer' : 'Start walk timer'}
+          >
+            <Text style={styles.walkTimerBtnText}>{walkTimerActive ? 'STOP' : 'START'}</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* ── Overlay: Discrete Actions menu ── */}
+        <View style={styles.discreteOverlay}>
+          <TouchableOpacity
+            style={styles.discreteTrigger}
+            onPress={() => setDiscreteMenuOpen(v => !v)}
+            accessibilityLabel="Discrete actions menu"
+          >
+            <Text style={styles.discreteTriggerText}>⋮</Text>
+          </TouchableOpacity>
+          {discreteMenuOpen && (
+            <View style={styles.discreteMenu}>
+              <TouchableOpacity style={styles.discreteItem} onPress={handleFakeCall}>
+                <Text style={styles.discreteItemIcon}>📞</Text>
+                <Text style={styles.discreteItemText}>Fake Call</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.discreteItem} onPress={handleShareLocation}>
+                <Text style={styles.discreteItemIcon}>📍</Text>
+                <Text style={styles.discreteItemText}>Share Loc</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.discreteItem} onPress={() => setDiscreteMenuOpen(false)}>
+                <Text style={styles.discreteItemIcon}>🔕</Text>
+                <Text style={styles.discreteItemText}>Silent SOS</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
       </View>
 
       {/* ── Feature Toggles ── */}
@@ -159,6 +302,13 @@ const styles = StyleSheet.create({
   container:   { flex: 1, backgroundColor: BG },
   content:     { padding: 20, paddingTop: Platform.OS === 'android' ? 40 : 56, paddingBottom: 40 },
 
+  // Heartbeat bar
+  heartbeatBar:     { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: 'rgba(0,255,136,0.05)', borderWidth: 1, borderColor: 'rgba(0,255,136,0.12)', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 12, marginBottom: 18 },
+  heartbeatItem:    { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  heartbeatDot:     { width: 6, height: 6, borderRadius: 3 },
+  heartbeatDotGreen:{ backgroundColor: GREEN, shadowColor: GREEN, shadowOpacity: 0.9, shadowRadius: 3 },
+  heartbeatLabel:   { fontSize: 9, fontWeight: '700', color: 'rgba(0,255,136,0.75)', letterSpacing: 0.8 },
+
   // Header
   header:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
   brand:       { fontSize: 22, fontWeight: '800', color: TEXT, letterSpacing: 0.5 },
@@ -184,6 +334,39 @@ const styles = StyleSheet.create({
   cardLabel:    { fontSize: 11, color: MUTED, fontWeight: '600', letterSpacing: 0.5, marginBottom: 6 },
   zoneName:     { fontSize: 20, fontWeight: '800', color: CYAN, marginBottom: 4 },
   zoneCoord:    { fontSize: 12, color: MUTED },
+
+  // ── Map area ──
+  mapContainer:    { position: 'relative', marginBottom: 20, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(0,212,255,0.12)' },
+  mapView:         { height: 260, borderRadius: 16 },
+
+  // ── Crowd-density pins ──
+  densityPin:       { position: 'absolute', alignItems: 'center' },
+  densityPinName:   { fontSize: 9, fontWeight: '700', color: 'rgba(240,244,255,0.7)', letterSpacing: 0.4, marginBottom: 3 },
+  densityBadge:     { borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3, borderWidth: 1 },
+  densityHigh:      { backgroundColor: 'rgba(0,255,136,0.12)', borderColor: 'rgba(0,255,136,0.30)' },
+  densityHighText:  { fontSize: 9, fontWeight: '700', color: GREEN },
+  densityMed:       { backgroundColor: 'rgba(0,212,255,0.12)', borderColor: 'rgba(0,212,255,0.30)' },
+  densityMedText:   { fontSize: 9, fontWeight: '700', color: CYAN },
+  densityLow:       { backgroundColor: 'rgba(255,255,255,0.06)', borderColor: 'rgba(255,255,255,0.12)' },
+  densityLowText:   { fontSize: 9, fontWeight: '700', color: MUTED },
+
+  // ── Safe-walk timer overlay ──
+  walkTimerOverlay: { position: 'absolute', bottom: 14, left: 12, backgroundColor: 'rgba(6,13,24,0.92)', borderWidth: 1, borderColor: 'rgba(0,212,255,0.18)', borderRadius: 14, padding: 10, alignItems: 'center', minWidth: 80 },
+  walkTimerIcon:    { fontSize: 18, marginBottom: 2 },
+  walkTimerTitle:   { fontSize: 9, fontWeight: '700', color: MUTED, letterSpacing: 0.6, marginBottom: 4 },
+  walkTimerClock:   { fontSize: 18, fontWeight: '800', color: CYAN, fontVariant: ['tabular-nums'], marginBottom: 6 },
+  walkTimerBtn:     { backgroundColor: 'rgba(0,212,255,0.15)', borderWidth: 1, borderColor: 'rgba(0,212,255,0.35)', borderRadius: 6, paddingHorizontal: 12, paddingVertical: 4 },
+  walkTimerBtnStop: { backgroundColor: 'rgba(255,76,76,0.15)', borderColor: 'rgba(255,76,76,0.35)' },
+  walkTimerBtnText: { fontSize: 10, fontWeight: '700', color: TEXT },
+
+  // ── Discrete actions overlay ──
+  discreteOverlay:      { position: 'absolute', bottom: 14, right: 12, alignItems: 'flex-end' },
+  discreteTrigger:      { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(6,13,24,0.92)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', justifyContent: 'center', alignItems: 'center' },
+  discreteTriggerText:  { fontSize: 20, color: TEXT, lineHeight: 22, fontWeight: '800' },
+  discreteMenu:         { marginBottom: 8, backgroundColor: 'rgba(6,13,24,0.95)', borderWidth: 1, borderColor: 'rgba(0,212,255,0.15)', borderRadius: 12, paddingVertical: 6, minWidth: 110 },
+  discreteItem:         { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 8 },
+  discreteItemIcon:     { fontSize: 14 },
+  discreteItemText:     { fontSize: 11, fontWeight: '600', color: TEXT },
 
   // Feature row
   row:          { flexDirection: 'row', gap: 12, marginBottom: 20 },
