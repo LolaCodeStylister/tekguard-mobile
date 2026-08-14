@@ -45,6 +45,13 @@ export default function HomeScreen({ navigation }: Props) {
   const [fakeCallVisible, setFakeCallVisible] = useState(false);
   const fakeCallTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // ── Location Sharing state ──
+  const [isSharingLocation, setIsSharingLocation] = useState(false);
+  const [personalContacts, setPersonalContacts] = useState<{ id: string; name: string; phone: string }[]>([
+    { id: '1', name: 'Roommate', phone: '+233 24 555 0101' },
+    { id: '2', name: 'Mom',      phone: '+233 20 888 0202' },
+  ]);
+
   // ── Walk-timer tick ──
   useEffect(() => {
     if (walkTimerActive) {
@@ -81,7 +88,11 @@ export default function HomeScreen({ navigation }: Props) {
 
   const handleShareLocation = useCallback(() => {
     setDiscreteMenuOpen(false);
-    Alert.alert('Location Shared', 'Your live location has been sent to your emergency contacts.');
+    setIsSharingLocation(true);
+  }, []);
+
+  const removeContact = useCallback((id: string) => {
+    setPersonalContacts(prev => prev.filter(c => c.id !== id));
   }, []);
 
   // Pulse animation for the live status dot
@@ -344,6 +355,104 @@ export default function HomeScreen({ navigation }: Props) {
         Powered by TekGuard Security · KNUST Campus Safety Network
       </Text>
 
+      {/* ── Location Sharing Modal ── */}
+      <Modal
+        visible={isSharingLocation}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        statusBarTranslucent
+        onRequestClose={() => setIsSharingLocation(false)}
+      >
+        <View style={styles.locModalContainer}>
+          {/* Header */}
+          <View style={styles.locModalHeader}>
+            <Animated.View style={[styles.locPulseDot, { transform: [{ scale: pulse }] }]} />
+            <Ionicons name="location-sharp" size={16} color={GREEN} style={{ marginRight: 5 }} />
+            <Text style={styles.locHeaderText}>Broadcasting Live Location...</Text>
+          </View>
+
+          <ScrollView style={styles.locScrollArea} showsVerticalScrollIndicator={false}>
+            {/* Section 1: Official Security */}
+            <Text style={styles.locSectionTitle}>OFFICIAL SECURITY</Text>
+            <View style={styles.locSection}>
+              <View style={styles.locContactRow}>
+                <View style={styles.locContactInfo}>
+                  <Ionicons name="shield-checkmark" size={18} color={CYAN} />
+                  <View style={{ marginLeft: 10 }}>
+                    <Text style={styles.locContactName}>KNUST Campus Security</Text>
+                    <Text style={styles.locContactPhone}>Campus Emergency Line</Text>
+                  </View>
+                </View>
+                <Feather name="lock" size={14} color={MUTED} />
+              </View>
+              <View style={styles.locDivider} />
+              <View style={styles.locContactRow}>
+                <View style={styles.locContactInfo}>
+                  <Ionicons name="shield-checkmark" size={18} color={CYAN} />
+                  <View style={{ marginLeft: 10 }}>
+                    <Text style={styles.locContactName}>Ghana Police Service</Text>
+                    <Text style={styles.locContactPhone}>National Emergency — 191</Text>
+                  </View>
+                </View>
+                <Feather name="lock" size={14} color={MUTED} />
+              </View>
+            </View>
+
+            {/* Section 2: Personal Contacts */}
+            <Text style={styles.locSectionTitle}>PERSONAL CONTACTS</Text>
+            <View style={styles.locSection}>
+              {personalContacts.map((contact, idx) => (
+                <React.Fragment key={contact.id}>
+                  {idx > 0 && <View style={styles.locDivider} />}
+                  <View style={styles.locContactRow}>
+                    <View style={styles.locContactInfo}>
+                      <View style={styles.locPersonAvatar}>
+                        <Ionicons name="person" size={16} color={MUTED} />
+                      </View>
+                      <View style={{ marginLeft: 10 }}>
+                        <Text style={styles.locContactName}>{contact.name}</Text>
+                        <Text style={styles.locContactPhone}>{contact.phone}</Text>
+                      </View>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => removeContact(contact.id)}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      accessibilityLabel={`Remove ${contact.name}`}
+                    >
+                      <Ionicons name="close-circle" size={22} color={RED} />
+                    </TouchableOpacity>
+                  </View>
+                </React.Fragment>
+              ))}
+              {personalContacts.length === 0 && (
+                <Text style={styles.locEmptyText}>No personal contacts added</Text>
+              )}
+            </View>
+
+            {/* Add Contact */}
+            <TouchableOpacity
+              style={styles.locAddBtn}
+              onPress={() => Alert.alert('Add Contact', 'Opens phone contact book')}
+              accessibilityLabel="Add emergency contact"
+            >
+              <Ionicons name="add-circle-outline" size={20} color={CYAN} />
+              <Text style={styles.locAddBtnText}>Add Emergency Contact</Text>
+            </TouchableOpacity>
+          </ScrollView>
+
+          {/* Footer: Stop Sharing */}
+          <TouchableOpacity
+            style={styles.locStopBtn}
+            onPress={() => setIsSharingLocation(false)}
+            activeOpacity={0.8}
+            accessibilityLabel="Stop sharing location"
+          >
+            <Ionicons name="stop-circle" size={22} color="#fff" style={{ marginRight: 8 }} />
+            <Text style={styles.locStopBtnText}>STOP SHARING</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
+
       {/* ── Fake Call Modal ── */}
       <Modal
         visible={fakeCallVisible}
@@ -503,4 +612,24 @@ const styles = StyleSheet.create({
   fakeCallDecline:   { backgroundColor: '#FF3B30' },
   fakeCallAccept:    { backgroundColor: '#34C759' },
   fakeCallBtnLabel:  { fontSize: 13, fontWeight: '500', color: '#FFFFFF' },
+
+  // ── Location Sharing modal ──
+  locModalContainer: { flex: 1, backgroundColor: '#121212', paddingTop: Platform.OS === 'android' ? 24 : 16 },
+  locModalHeader:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 18, backgroundColor: 'rgba(0,255,136,0.06)', borderBottomWidth: 1, borderBottomColor: 'rgba(0,255,136,0.12)' },
+  locPulseDot:       { width: 8, height: 8, borderRadius: 4, backgroundColor: GREEN, marginRight: 8, shadowColor: GREEN, shadowOpacity: 0.9, shadowRadius: 4 },
+  locHeaderText:     { fontSize: 14, fontWeight: '700', color: GREEN, letterSpacing: 0.4 },
+  locScrollArea:     { flex: 1, padding: 20 },
+  locSectionTitle:   { fontSize: 10, fontWeight: '800', color: MUTED, letterSpacing: 1.2, marginBottom: 10, marginTop: 8 },
+  locSection:        { backgroundColor: '#1A1A1A', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', borderRadius: 14, padding: 4, marginBottom: 20 },
+  locContactRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 13, paddingHorizontal: 12 },
+  locContactInfo:    { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  locPersonAvatar:   { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center' },
+  locContactName:    { fontSize: 14, fontWeight: '600', color: '#F0F4FF' },
+  locContactPhone:   { fontSize: 11, color: MUTED, marginTop: 1 },
+  locDivider:        { height: 1, backgroundColor: 'rgba(255,255,255,0.05)', marginHorizontal: 12 },
+  locEmptyText:      { fontSize: 12, color: MUTED, textAlign: 'center', paddingVertical: 16 },
+  locAddBtn:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderWidth: 1, borderColor: 'rgba(0,229,255,0.18)', borderRadius: 12, borderStyle: 'dashed', marginBottom: 20 },
+  locAddBtnText:     { fontSize: 13, fontWeight: '600', color: CYAN, marginLeft: 8 },
+  locStopBtn:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: RED, marginHorizontal: 20, marginBottom: Platform.OS === 'android' ? 24 : 40, borderRadius: 14, paddingVertical: 16, shadowColor: RED, shadowOpacity: 0.4, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
+  locStopBtnText:    { fontSize: 15, fontWeight: '800', color: '#fff', letterSpacing: 1 },
 });
