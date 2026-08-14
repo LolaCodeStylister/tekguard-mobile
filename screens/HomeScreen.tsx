@@ -37,8 +37,8 @@ export default function HomeScreen({ navigation }: Props) {
   const [activeZone, setActiveZone] = useState('Science Block');
 
   // ── Safe Walk Timer state ──
-  const [walkTimerActive, setWalkTimerActive] = useState(false);
-  const [walkSeconds, setWalkSeconds] = useState(0);
+  const [isSafeWalkActive, setIsSafeWalkActive] = useState(false);
+  const [safeWalkTimeLeft, setSafeWalkTimeLeft] = useState(300);
   const walkInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ── Discrete Actions menu ──
@@ -55,16 +55,28 @@ export default function HomeScreen({ navigation }: Props) {
     { id: '2', name: 'Mom',      phone: '+233 20 888 0202' },
   ]);
 
-  // ── Walk-timer tick ──
+  // ── Safe Walk countdown ──
   useEffect(() => {
-    if (walkTimerActive) {
-      walkInterval.current = setInterval(() => setWalkSeconds(s => s + 1), 1000);
+    if (isSafeWalkActive && safeWalkTimeLeft > 0) {
+      walkInterval.current = setInterval(() => {
+        setSafeWalkTimeLeft(prev => {
+          if (prev <= 1) {
+            // Time's up — trigger SOS
+            clearInterval(walkInterval.current!);
+            walkInterval.current = null;
+            setIsSafeWalkActive(false);
+            Alert.alert('SOS TRIGGERED', 'You did not mark yourself as safe. Alerting contacts...');
+            return 300; // reset for next use
+          }
+          return prev - 1;
+        });
+      }, 1000);
     } else if (walkInterval.current) {
       clearInterval(walkInterval.current);
       walkInterval.current = null;
     }
     return () => { if (walkInterval.current) clearInterval(walkInterval.current); };
-  }, [walkTimerActive]);
+  }, [isSafeWalkActive, safeWalkTimeLeft > 0]);
 
   // Clean up fake call timer on unmount
   useEffect(() => {
@@ -261,8 +273,16 @@ export default function HomeScreen({ navigation }: Props) {
           <Ionicons name="location-sharp" size={13} color={MUTED} style={{ marginRight: 4 }} />
           <Text style={styles.cardLabel}>Current Zone</Text>
         </View>
-        <Text style={styles.zoneName}>{activeZone}</Text>
-        <Text style={styles.zoneCoord}>KNUST Campus · GPS Active</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View>
+            <Text style={styles.zoneName}>{activeZone}</Text>
+            <Text style={styles.zoneCoord}>KNUST Campus · GPS Active</Text>
+          </View>
+          <View style={styles.zoneDensityBadge}>
+            <Feather name="users" size={10} color={GREEN} style={{ marginRight: 4 }} />
+            <Text style={styles.zoneDensityText}>42 Active Nearby</Text>
+          </View>
+        </View>
       </View>
 
       {/* ── Center Map Area ── */}
@@ -336,18 +356,31 @@ export default function HomeScreen({ navigation }: Props) {
 
         {/* ── Overlay: Safe Walk Timer ── */}
         <View style={styles.walkTimerOverlay}>
-          <MaterialCommunityIcons name="walk" size={20} color={CYAN} style={{ marginBottom: 2 }} />
+          <MaterialCommunityIcons name="walk" size={20} color={isSafeWalkActive ? GREEN : CYAN} style={{ marginBottom: 2 }} />
           <Text style={styles.walkTimerTitle}>Safe Walk</Text>
-          <Text style={styles.walkTimerClock}>{formatTimer(walkSeconds)}</Text>
+          <Text style={[styles.walkTimerClock, isSafeWalkActive && { color: GREEN }]}>
+            {formatTimer(safeWalkTimeLeft)}
+          </Text>
           <TouchableOpacity
-            style={[styles.walkTimerBtn, walkTimerActive && styles.walkTimerBtnStop]}
+            style={[
+              styles.walkTimerBtn,
+              isSafeWalkActive && styles.walkTimerBtnSafe,
+            ]}
             onPress={() => {
-              if (walkTimerActive) { setWalkTimerActive(false); setWalkSeconds(0); }
-              else { setWalkTimerActive(true); }
+              if (isSafeWalkActive) {
+                // Mark safe — arrived
+                setIsSafeWalkActive(false);
+                setSafeWalkTimeLeft(300);
+                Alert.alert('Route Completed', 'Glad you made it safely!');
+              } else {
+                // Start countdown
+                setSafeWalkTimeLeft(300);
+                setIsSafeWalkActive(true);
+              }
             }}
-            accessibilityLabel={walkTimerActive ? 'Stop walk timer' : 'Start walk timer'}
+            accessibilityLabel={isSafeWalkActive ? 'Mark yourself as safe' : 'Start safe walk timer'}
           >
-            <Text style={styles.walkTimerBtnText}>{walkTimerActive ? 'STOP' : 'START'}</Text>
+            <Text style={styles.walkTimerBtnText}>{isSafeWalkActive ? 'SAFE' : 'START'}</Text>
           </TouchableOpacity>
         </View>
 
@@ -635,6 +668,8 @@ const styles = StyleSheet.create({
   cardLabel:    { fontSize: 11, color: MUTED, fontWeight: '600', letterSpacing: 0.5 },
   zoneName:     { fontSize: 20, fontWeight: '800', color: CYAN, marginBottom: 4 },
   zoneCoord:    { fontSize: 12, color: MUTED },
+  zoneDensityBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,255,136,0.10)', borderWidth: 1, borderColor: 'rgba(0,255,136,0.22)', borderRadius: 10, paddingHorizontal: 9, paddingVertical: 5 },
+  zoneDensityText:  { fontSize: 11, fontWeight: '700', color: GREEN },
 
   // ── Map area ──
   mapContainer:    { position: 'relative', marginBottom: 20, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(0,229,255,0.10)' },
@@ -656,6 +691,7 @@ const styles = StyleSheet.create({
   walkTimerTitle:   { fontSize: 9, fontWeight: '700', color: MUTED, letterSpacing: 0.6, marginBottom: 4 },
   walkTimerClock:   { fontSize: 18, fontWeight: '800', color: CYAN, fontVariant: ['tabular-nums'], marginBottom: 6 },
   walkTimerBtn:     { backgroundColor: 'rgba(0,229,255,0.12)', borderWidth: 1, borderColor: 'rgba(0,229,255,0.32)', borderRadius: 6, paddingHorizontal: 12, paddingVertical: 4 },
+  walkTimerBtnSafe: { backgroundColor: 'rgba(0,255,136,0.15)', borderColor: 'rgba(0,255,136,0.35)' },
   walkTimerBtnStop: { backgroundColor: 'rgba(255,76,76,0.15)', borderColor: 'rgba(255,76,76,0.35)' },
   walkTimerBtnText: { fontSize: 10, fontWeight: '700', color: TEXT },
 
