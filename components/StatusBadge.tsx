@@ -26,7 +26,7 @@ const PALETTE: Record<Color, { bg: string; border: string; text: string }> = {
   green:  { bg: 'rgba(0,255,136,0.10)',  border: 'rgba(0,255,136,0.30)',  text: '#00FF88' },
   red:    { bg: 'rgba(255,76,76,0.12)',  border: 'rgba(255,76,76,0.35)',  text: '#FF4C4C' },
   orange: { bg: 'rgba(255,123,47,0.12)', border: 'rgba(255,123,47,0.35)', text: '#FF7B2F' },
-  cyan:   { bg: 'rgba(0,212,255,0.10)',  border: 'rgba(0,212,255,0.30)',  text: '#00D4FF' },
+  cyan:   { bg: 'rgba(0,229,255,0.10)',  border: 'rgba(0,229,255,0.30)',  text: '#00E5FF' },
   muted:  { bg: 'rgba(255,255,255,0.05)',border: 'rgba(255,255,255,0.12)',text: '#6B7FA3' },
 };
 

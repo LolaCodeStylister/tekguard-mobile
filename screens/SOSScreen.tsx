@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../App';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 type SOSScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'SOS'>;
 interface Props { navigation: SOSScreenNavigationProp; }
@@ -58,7 +59,7 @@ export default function SOSScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#1A0000" />
+      <StatusBar barStyle="light-content" backgroundColor="#000000" />
 
       <Text style={styles.title}>🚨 SOS ALERT</Text>
       <Text style={styles.subtitle}>
@@ -76,10 +77,26 @@ export default function SOSScreen({ navigation }: Props) {
 
       {/* Status details */}
       <View style={styles.infoCard}>
-        <InfoRow icon="📍" label="Location" value="KNUST Campus · GPS Active" />
-        <InfoRow icon="🔔" label="Contacts" value="Security · Emergency · Guardian" />
-        <InfoRow icon="⏱️" label="DMS"      value="Triggered — 3 min timeout" />
-        <InfoRow icon="🤸" label="Sensor"   value="Impact detected" />
+        <InfoRow
+          icon={<Ionicons name="location-sharp" size={18} color={CYAN} />}
+          label="Location"
+          value="KNUST Campus · GPS Active"
+        />
+        <InfoRow
+          icon={<Ionicons name="notifications" size={18} color={CYAN} />}
+          label="Contacts"
+          value="Security · Emergency · Guardian"
+        />
+        <InfoRow
+          icon={<MaterialCommunityIcons name="timer-outline" size={18} color={CYAN} />}
+          label="DMS"
+          value="Triggered — 3 min timeout"
+        />
+        <InfoRow
+          icon={<MaterialCommunityIcons name="human-handsdown" size={18} color={CYAN} />}
+          label="Sensor"
+          value="Impact detected"
+        />
       </View>
 
       {!sent && (
@@ -97,10 +114,11 @@ export default function SOSScreen({ navigation }: Props) {
   );
 }
 
-function InfoRow({ icon, label, value }: { icon: string; label: string; value: string }) {
+// ── InfoRow — now accepts a React element instead of a string emoji ──
+function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <View style={styles.infoRow}>
-      <Text style={styles.infoIcon}>{icon}</Text>
+      <View style={styles.infoIconWrap}>{icon}</View>
       <View>
         <Text style={styles.infoLabel}>{label}</Text>
         <Text style={styles.infoValue}>{value}</Text>
@@ -109,9 +127,11 @@ function InfoRow({ icon, label, value }: { icon: string; label: string; value: s
   );
 }
 
+// ── Colors ─────────────────────────────────────────────────────────────────
 const RED   = '#FF4C4C';
-const BG    = '#0E0000';
-const CARD  = '#1A0A0A';
+const CYAN  = '#00E5FF';
+const BG    = '#000000';
+const CARD  = '#121212';
 const TEXT  = '#F0F4FF';
 const MUTED = '#8892A4';
 
@@ -126,9 +146,9 @@ const styles = StyleSheet.create({
   sosEmoji:     { fontSize: 36, marginBottom: 4 },
   sosCircleText:{ fontSize: 18, fontWeight: '900', color: RED, letterSpacing: 2 },
 
-  infoCard:     { width: '100%', backgroundColor: CARD, borderRadius: 16, padding: 16, gap: 12, marginBottom: 32 },
+  infoCard:     { width: '100%', backgroundColor: CARD, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', padding: 16, gap: 14, marginBottom: 32 },
   infoRow:      { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  infoIcon:     { fontSize: 20, width: 28 },
+  infoIconWrap: { width: 28, alignItems: 'center' },
   infoLabel:    { fontSize: 11, color: MUTED, fontWeight: '600' },
   infoValue:    { fontSize: 13, color: TEXT, fontWeight: '500' },
 

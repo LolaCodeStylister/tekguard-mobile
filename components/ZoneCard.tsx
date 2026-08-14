@@ -14,6 +14,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import type { Zone } from '../services/locationService';
 import StatusBadge from './StatusBadge';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 interface Props {
   zone:     Zone;
@@ -21,10 +22,11 @@ interface Props {
   active?:  boolean;
 }
 
-const RISK_ICON: Record<Zone['risk'], string> = {
-  high:   '🔴',
-  medium: '🟠',
-  low:    '🟢',
+// ── Risk-level icon config (vector icons instead of emojis) ──
+const RISK_ICON_CONFIG: Record<Zone['risk'], { name: string; color: string }> = {
+  high:   { name: 'alert-circle',         color: '#FF4C4C' },
+  medium: { name: 'alert-circle-outline',  color: '#FF7B2F' },
+  low:    { name: 'checkmark-circle',      color: '#00FF88' },
 };
 
 const RISK_COLOR: Record<Zone['risk'], 'red' | 'orange' | 'green'> = {
@@ -46,6 +48,8 @@ const ACCENT: Record<Zone['risk'], string> = {
 };
 
 export default function ZoneCard({ zone, onPress, active = false }: Props) {
+  const iconCfg = RISK_ICON_CONFIG[zone.risk];
+
   return (
     <TouchableOpacity
       style={[styles.card, active && { borderColor: ACCENT[zone.risk] }]}
@@ -54,7 +58,11 @@ export default function ZoneCard({ zone, onPress, active = false }: Props) {
       accessibilityLabel={`Zone: ${zone.name}, Risk: ${zone.risk}`}
     >
       <View style={styles.row}>
-        <Text style={styles.icon}>{RISK_ICON[zone.risk]}</Text>
+        <Ionicons
+          name={iconCfg.name as any}
+          size={22}
+          color={iconCfg.color}
+        />
         <View style={{ flex: 1 }}>
           <Text style={styles.name}>{zone.name}</Text>
           <Text style={styles.coord}>
@@ -65,7 +73,8 @@ export default function ZoneCard({ zone, onPress, active = false }: Props) {
       </View>
       {active && (
         <View style={styles.activeBanner}>
-          <Text style={styles.activeText}>📍 You are here</Text>
+          <Ionicons name="location-sharp" size={13} color="#00E5FF" style={{ marginRight: 4 }} />
+          <Text style={styles.activeText}>You are here</Text>
         </View>
       )}
     </TouchableOpacity>
@@ -73,11 +82,10 @@ export default function ZoneCard({ zone, onPress, active = false }: Props) {
 }
 
 const styles = StyleSheet.create({
-  card:         { backgroundColor: '#0E1A2E', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 14, marginBottom: 10 },
+  card:         { backgroundColor: '#121212', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', borderRadius: 12, padding: 14, marginBottom: 10 },
   row:          { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  icon:         { fontSize: 22 },
   name:         { fontSize: 14, fontWeight: '700', color: '#F0F4FF', marginBottom: 2 },
   coord:        { fontSize: 11, color: '#6B7FA3' },
-  activeBanner: { marginTop: 10, backgroundColor: 'rgba(0,212,255,0.08)', borderRadius: 8, padding: 6, alignItems: 'center' },
-  activeText:   { fontSize: 12, color: '#00D4FF', fontWeight: '600' },
+  activeBanner: { marginTop: 10, backgroundColor: 'rgba(0,229,255,0.06)', borderRadius: 8, padding: 6, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' },
+  activeText:   { fontSize: 12, color: '#00E5FF', fontWeight: '600' },
 });

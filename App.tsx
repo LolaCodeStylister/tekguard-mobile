@@ -24,12 +24,12 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 // ── Custom header style shared across all screens ─────────────────────────
 const SCREEN_OPTIONS = {
-  headerStyle:       { backgroundColor: '#060D18' },
+  headerStyle:       { backgroundColor: '#000000' },
   headerTintColor:   '#F0F4FF',
   headerTitleStyle:  { fontWeight: '700' as const, fontSize: 16 },
   headerBackVisible: true,
   animation:         'slide_from_right' as const,
-  contentStyle:      { backgroundColor: '#060D18' },
+  contentStyle:      { backgroundColor: '#000000' },
 };
 
 export default function App() {
@@ -39,14 +39,14 @@ export default function App() {
         <Stack.Screen
           name="Home"
           component={HomeScreen}
-          options={{ title: '⚡ TekGuard', headerShown: false }}
+          options={{ title: 'TekGuard', headerShown: false }}
         />
         <Stack.Screen
           name="SOS"
           component={SOSScreen}
           options={{
             title:            '🚨 SOS Alert',
-            headerStyle:      { backgroundColor: '#0E0000' },
+            headerStyle:      { backgroundColor: '#000000' },
             headerTintColor:  '#FF4C4C',
             headerTitleStyle: { fontWeight: '900' as const, fontSize: 17 },
           }}
